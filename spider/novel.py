@@ -58,7 +58,7 @@ class Crawl_thread(threading.Thread):
                         'sort_name': item['sort_name']
                     }
                     data_quere.put(datas)  # 将数据入队做数据抓取处理
-                    #time.sleep(2)
+                    # time.sleep(2)
                     # print(html)
                 except Exception as e:
                     print(u'采集线程错误', e)
@@ -106,7 +106,7 @@ class Parser_thread(threading.Thread):
             numList = len(urlList)  # 32条数据
             for url in urlList:
                 url = url.get('href')
-                #print("当前栏目页 %s ，采集的url %s " % (item['url'], url))
+                # print("当前栏目页 %s ，采集的url %s " % (item['url'], url))
                 book_str = url.split('_')
                 book_str = str(book_str[1]).split('.')
                 if len(book_str) > 0:
@@ -115,17 +115,16 @@ class Parser_thread(threading.Thread):
                         getNovel(url, item['sort_id'], item['sort_name'], book_id)
                         print('book_id %d 已入库！' % int(book_id))
                     else:
-                        print('book_id %d 已存在！' % int(book_id))
+                        print('book_id %d ****已存在！****' % int(book_id))
                 else:
                     pass
-                #time.sleep(2)  # 2秒执行一次
+                # time.sleep(2)  # 2秒执行一次
         except Exception as e:
             print('解析出错', e)
             pass
 
 
 data_quere = queue.Queue()  # 创建一个队列
-
 
 flag = False  # 全局变量
 
@@ -153,6 +152,8 @@ sort_id     栏目id
 sort_name   栏目名称
 book_id     小说id，标识符
 """
+
+
 # 获取小说内容
 def getNovel(url, sort_id, sort_name, book_id):
     req = urllib.request.Request(url, headers=headers)
@@ -220,8 +221,32 @@ def addNovelData(data):
     del sql
     return lastrwoid
 
+def writeF(pageFile,sort_id,start_page,end_page,max_page):
+    datas = {}
+    datas[sort_id] = [str(start_page), str(end_page), str(max_page)]
+    result = ""  # 初始化一个空的字符串用来存储数据
+    # print(scores)
+    # scores  {'1': ['6', '1', '21']}
+    for n in datas:
+        # 把成绩按照“name game_times min_times total_times” 格式化
+        # 结尾要加上\n换行
+        line = str(n) + " " + " ".join(datas[n]) + "\n"
 
-def main(sort_id, start_page, end_page):
+        result += line  # 添加到result中
+    # 写入文件
+    w = open(pageFile, "wb")
+    w.write(result.encode('utf-8'))
+    w.close()
+
+
+def main(sort_id, start_page=1, end_page=20):
+    '''
+    主函数
+    :param sort_id:     栏目id
+    :param start_page:  开始页数
+    :param end_page:    结束页数
+    :return:
+    '''
 
     # 循环栏目字典
     # for sort_id, sort_name in sort_dict.items():  # sort_dict是一个字典，所以需要使用 .items()
@@ -236,15 +261,34 @@ def main(sort_id, start_page, end_page):
     max_page 
     '''
     # soup写法
-    # res = requests.get(url, timeout=5, headers=headers)
-    # res.encoding = 'gbk'
-    # soup = BeautifulSoup(res.text, 'html.parser')
-    # page_text = soup.select('.pagelink > em')[0].text
-    # max_page = page_text.split('/')[1]
-    max_page = 20
-    if end_page - start_page > max_page:
-        print('每次最多采集%d页' % max_page)
-    pageQueue = queue.Queue(50)  # 初始化队列
+    res = requests.get(url, timeout=5, headers=headers)
+    res.encoding = 'gbk'
+    soup = BeautifulSoup(res.text, 'html.parser')
+    page_text = soup.select('.pagelink > em')[0].text
+    max_page = page_text.split('/')[1]
+    h_max_page = max_page
+    pageFile = 'sort_dict.txt'
+    datas = {}  # 初始化一个空字典
+    if os.path.exists(pageFile):
+        f = open(pageFile, 'r')
+        lines = f.readlines()
+        f.close()
+        for l in lines:
+            s = l.split()  # 把每一行的数据拆分成list
+            datas[s[0]] = s[1:]  # 第一项作为key，剩下的作为value
+        #取数据
+        data = datas.get(str(sort_id))
+        start_page = int(data[0])
+        end_page = int(data[1])
+        max_page = int(data[2])
+    else:
+        writeF(pageFile,sort_id,start_page,end_page,max_page)
+
+    #如果最大页数 小余 页面的最大页数
+    if int(max_page) < int(h_max_page):
+        max_page = h_max_page
+
+    pageQueue = queue.Queue((end_page - start_page) + 1)  # 初始化队列
     for page in range(start_page, end_page):  # 100任务
         cateUrl = "http://www.quanshuwang.com/list/%d_%d.html" % (sort_id, page)
         # print(cateUrl)
@@ -294,6 +338,19 @@ def main(sort_id, start_page, end_page):
     print(u"退出主线程")
     # output.close()
 
+    '''
+    如果end_page 大于 最大页数则退出程序
+    否则 继续调用 main 函数
+    '''
+    if int(end_page) > int(max_page):
+        os._exit(0)
+    else:
+        flag = False #通知线程开始
+        start_page = int(end_page)
+        end_page = int(end_page) + 20
+        #将 sort start_page end_page max_page 存入文档
+        writeF(pageFile,sort_id,start_page,end_page,max_page)
+        main(sort_id)
 
 if __name__ == '__main__':
-    main(1, 19, 50)
+    main(1)
