@@ -48,6 +48,17 @@ class MYSQL():
             return None
         return resList
 
+    # 执行查询语句，返回行数
+    def ExecQueryCount(self, sql):
+        cur = self.__GetConnect()
+        if cur is None:
+            return
+        cur.execute(sql)
+        resCount = cur.rowcount
+        # 查询完毕后必须关闭连接
+        self.conn.close()
+        return resCount
+
     #执行非查询语句
     def ExecNonQuery(self,sql):
         cur = self.__GetConnect()

@@ -1,0 +1,12 @@
+CREATE TABLE `chapter` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `novel_id` int(11) DEFAULT NULL,
+  `title` varchar(255) DEFAULT NULL,
+  `content` longtext,
+  `chapter_id` int(11) DEFAULT NULL COMMENT '采集网站的标识',
+  `book_url` varchar(100) DEFAULT NULL COMMENT '采集的url标识',
+  `chapter_url` varchar(100) DEFAULT NULL COMMENT '章节url 标识',
+  `create_time` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=6921 DEFAULT CHARSET=utf8;
+
