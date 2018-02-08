@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2018/2/7 16:55
 # @Author  : ysongyang
-# @Site    : 采集全书网内容列表
+# @Site    : 采集全书网内容列表（多线程）
 # @File    : novel.py
 # @Software: PyCharm
 
@@ -16,10 +16,33 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 
 
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.140 Safari/537.36'}
+
+# 定义一个字典对应栏目名称
+sort_dict = {
+    1: '玄幻魔法',
+    2: '武侠修真',
+    3: '纯爱耽美',
+    4: '都市言情',
+    5: '职场校园',
+    6: '穿越重生',
+    7: '历史军事',
+    8: '网游动漫',
+    9: '恐怖灵异',
+    10: '科幻小说',
+    11: '美文名著',
+}
+
+data_quere = queue.Queue()  # 创建一个队列
+dicts = {}  # 初始化一个空字典全局变量
+flag = False  # 全局变量
+
+
+'''
+抓取线程类
+'''
 class Crawl_thread(threading.Thread):
-    '''
-    抓取线程类
-    '''
 
     def __init__(self, thread_id, queue):
         threading.Thread.__init__(self)
@@ -63,11 +86,10 @@ class Crawl_thread(threading.Thread):
                 except Exception as e:
                     print(u'采集线程错误', e)
 
-
+'''
+解析网页的线程类
+'''
 class Parser_thread(threading.Thread):
-    '''
-    解析网页的类
-    '''
 
     def __init__(self, thread_id, queue):
         threading.Thread.__init__(self)
@@ -90,12 +112,13 @@ class Parser_thread(threading.Thread):
                 pass
         print(u'退出了解析线程,{}'.format(self.thread_id))  # 加u 表示 unicode编码
 
+    '''
+    解析每个栏目的网页内容的函数
+    :param item:
+    :return:
+    '''
     def parse_data(self, item):
-        '''
-        解析每个栏目的网页内容的函数
-        :param item:
-        :return:
-        '''
+
         try:
             res = requests.get(item['url'], timeout=5, headers=headers)
             if res.status_code == 404:
@@ -113,7 +136,7 @@ class Parser_thread(threading.Thread):
                     book_id = book_str[0]
                     if isNovelBookId(book_id) is None:
                         getNovel(url, item['sort_id'], item['sort_name'], book_id)
-                        print('book_id %d 已入库！' % int(book_id))
+                        print('book_id %d 入库成功！' % int(book_id))
                     else:
                         print('book_id %d ****已存在！****' % int(book_id))
                 else:
@@ -124,36 +147,12 @@ class Parser_thread(threading.Thread):
             pass
 
 
-data_quere = queue.Queue()  # 创建一个队列
-
-flag = False  # 全局变量
-
-# 定义一个字典对应栏目名称
-sort_dict = {
-    1: '玄幻魔法',
-    2: '武侠修真',
-    3: '纯爱耽美',
-    4: '都市言情',
-    5: '职场校园',
-    6: '穿越重生',
-    7: '历史军事',
-    8: '网游动漫',
-    9: '恐怖灵异',
-    10: '科幻小说',
-    11: '美文名著',
-}
-
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.140 Safari/537.36'}
-
 """
 url         小说url
 sort_id     栏目id
 sort_name   栏目名称
 book_id     小说id，标识符
 """
-
-
 # 获取小说内容
 def getNovel(url, sort_id, sort_name, book_id):
     req = urllib.request.Request(url, headers=headers)
@@ -222,43 +221,35 @@ def addNovelData(data):
     return lastrwoid
 
 def writeF(pageFile,sort_id,start_page,end_page,max_page):
-    datas = {}
-    datas[sort_id] = [str(start_page), str(end_page), str(max_page)]
-    result = ""  # 初始化一个空的字符串用来存储数据
-    # print(scores)
-    # scores  {'1': ['6', '1', '21']}
-    for n in datas:
-        # 把成绩按照“name game_times min_times total_times” 格式化
-        # 结尾要加上\n换行
-        line = str(n) + " " + " ".join(datas[n]) + "\n"
 
+    dicts[str(sort_id)] = [str(start_page), str(end_page), str(max_page)]
+    result = ""  # 初始化一个空的字符串用来存储数据
+    # scores  {'1': ['6', '1', '21']}
+    for n in dicts:
+        # 结尾要加上\n换行
+        line = str(n) + " " + " ".join(dicts[n]) + "\n"
         result += line  # 添加到result中
     # 写入文件
-    w = open(pageFile, "wb")
-    w.write(result.encode('utf-8'))
+    w = open(pageFile, "w")
+    w.write(result)
     w.close()
-
-
+'''
+主函数
+:param sort_id:     栏目id
+:param start_page:  开始页数
+:param end_page:    结束页数
+:return:
+'''
 def main(sort_id, start_page=1, end_page=20):
-    '''
-    主函数
-    :param sort_id:     栏目id
-    :param start_page:  开始页数
-    :param end_page:    结束页数
-    :return:
-    '''
-
     # 循环栏目字典
     # for sort_id, sort_name in sort_dict.items():  # sort_dict是一个字典，所以需要使用 .items()
     url = "http://www.quanshuwang.com/list/%d_1.html" % (sort_id)
-
     '''
     #urllib写法
     req = urllib.request.Request(url, headers=headers)
     html = urllib.request.urlopen(req).read().decode('gbk')  # 转码   .encode('utf-8').decode('utf-8')
     reg = r'<em id="pagestats">(.*?)</em>'  # 获取总页码数
     page_text = re.findall(reg, html)
-    max_page 
     '''
     # soup写法
     res = requests.get(url, timeout=5, headers=headers)
@@ -268,21 +259,25 @@ def main(sort_id, start_page=1, end_page=20):
     max_page = page_text.split('/')[1]
     h_max_page = max_page
     pageFile = 'sort_dict.txt'
-    datas = {}  # 初始化一个空字典
+
+    #如果文件存在
     if os.path.exists(pageFile):
-        f = open(pageFile, 'r')
+        f = open(pageFile)
         lines = f.readlines()
         f.close()
         for l in lines:
             s = l.split()  # 把每一行的数据拆分成list
-            datas[s[0]] = s[1:]  # 第一项作为key，剩下的作为value
-        #取数据
-        data = datas.get(str(sort_id))
+            dicts[s[0]] = s[1:]  # 第一项作为key，剩下的作为value
+    else:
+        writeF(pageFile,sort_id,start_page,end_page,max_page)
+
+    # 取数据
+    data = dicts.get(str(sort_id))
+    # 如果数据不为空
+    if data is not None:
         start_page = int(data[0])
         end_page = int(data[1])
         max_page = int(data[2])
-    else:
-        writeF(pageFile,sort_id,start_page,end_page,max_page)
 
     #如果最大页数 小余 页面的最大页数
     if int(max_page) < int(h_max_page):
@@ -348,9 +343,9 @@ def main(sort_id, start_page=1, end_page=20):
         flag = False #通知线程开始
         start_page = int(end_page)
         end_page = int(end_page) + 20
-        #将 sort start_page end_page max_page 存入文档
+        #将 sort_id start_page end_page max_page 存入文档
         writeF(pageFile,sort_id,start_page,end_page,max_page)
         main(sort_id)
 
 if __name__ == '__main__':
-    main(1)
+    main(1) #默认采集第一个栏目的数据
