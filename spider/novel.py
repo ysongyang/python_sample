@@ -70,8 +70,8 @@ class Crawl_thread(threading.Thread):
                 item = self.queue.get()  # 获取队列里的元素    出队
                 url = item['url']
                 # print(u'当前正在工作线程是【{}】,正在采集第 {} 页，URL地址是 {}'.format(self.thread_id, str(item['page']), str(url)))
-                # url = 'https://www.qiushibaike.com/8hr/page/{}/'.format(page)
                 try:
+                    # urllib写法
                     # req = urllib.request.Request(url, headers=headers)
                     # html = urllib.request.urlopen(req).read().decode('gbk')  # 转码   .encode('utf-8').decode('utf-8')
                     # content = requests.get(self.url,headers=headers)

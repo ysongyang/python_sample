@@ -3,7 +3,7 @@
 # @Time    : 2018/2/7 16:55
 # @Author  : ysongyang
 # @Site    : 采集小说下的章节（多线程）
-# @File    : novel.py
+# @File    : chapter.py
 # @Software: PyCharm
 
 import requests
@@ -44,9 +44,7 @@ class Crawl_thread(threading.Thread):
             else:
 
                 item = self.queue.get()  # 获取队列里的元素    出队
-                print(item)
                 # print(u'当前正在工作线程是【{}】,正在采集第 {} 页，URL地址是 {}'.format(self.thread_id, str(item['page']), str(url)))
-                # url = 'https://www.qiushibaike.com/8hr/page/{}/'.format(page)
                 try:
                     datas = {
                         'url': item['url'],
@@ -96,7 +94,7 @@ class Parser_thread(threading.Thread):
                 pass
             res.encoding = 'gbk'
             soup = BeautifulSoup(res.text, 'html.parser')
-            chapter_title = soup.select('.chapName > strong')[0].text
+            #chapter_title = soup.select('.chapName > strong')[0].text
             urlList = soup.select('.chapterNum ul .dirconone > li > a')
             numList = len(urlList)  # 章节的数据
             '''
@@ -141,13 +139,11 @@ def getChapterContent(url, chapter_url, chapter_title, lastrowid):
                 'title': chapter_title,
                 'content': content,
                 'chapter_id': chapter_id,
-                # http://www.quanshuwang.com/book/144/144052/39966954.html
                 'book_url': url,  # 小说的url
                 'chapter_url': chapter_url,  # 章节的url
                 'create_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             }
             # 插入章节内容
-            # print(chapter_title)
             addChapterData(data)
             print('chapter_id %d 已入库！' % int(chapter_id))
         else:
